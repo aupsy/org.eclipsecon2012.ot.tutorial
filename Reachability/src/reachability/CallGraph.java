@@ -1,5 +1,9 @@
 package reachability;
 
+import org.eclipse.jdt.core.compiler.CharOperation;
+import org.eclipse.jdt.internal.compiler.lookup.ClassScope;
+
+import base org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
 import base org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
 import base org.eclipse.jdt.internal.core.builder.JavaBuilder;
 
@@ -31,6 +35,20 @@ public team class CallGraph {
 		 * A node in the call graph.
 		 */
 		protected class MethodNode playedBy MethodBinding {
+			char[] getSelector() -> get char[] selector;
+		}
+		
+		/** Collect all declarations of 'main' methods, to be used as start nodes for traversal. */
+		protected class StartNodeDetector playedBy AbstractMethodDeclaration {
+	
+			MethodNode getNode() -> get MethodBinding binding;
+
+			void resolve(ClassScope upperScope) <- after void resolve(ClassScope upperScope);
+	
+			private void resolve(ClassScope upperScope) {
+				MethodNode node = this.getNode();
+				System.out.println("Found method: "+new String(node.getSelector()));
+			}			
 		}
 	}
 }
