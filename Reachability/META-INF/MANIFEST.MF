@@ -1,0 +1,10 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Reachability
+Bundle-SymbolicName: org.eclipsecon2012.jdt.ot.Reachability
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: reachability.Activator
+Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.objectteams.otequinox
+Bundle-ActivationPolicy: lazy
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6
