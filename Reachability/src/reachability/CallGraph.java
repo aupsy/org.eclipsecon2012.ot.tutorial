@@ -1,7 +1,9 @@
 package reachability;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.internal.compiler.flow.FlowContext;
@@ -43,8 +45,21 @@ public team class CallGraph {
 			base.buildAll();
 			this.deactivate(ALL_THREADS);
 			
+			// collect a set of all MethodNodes created during the build:
+			Set<MethodNode> allMethods = new HashSet<MethodNode>(); 
+			for (MethodNode node : this.getAllRoles(MethodNode.class))
+				allMethods.add(node);
+
+			// print remaining nodes to std-out:
+			System.out.println("vvvv FOUND METHODS vvvv");
+			for(MethodNode node : allMethods)
+				if (!node.isBinary())
+					System.out.println(node.className()+'\t'+node);
+			System.out.println("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
+
 			// clean-up
 			startNodes = null;
+			CallGraph.this.unregisterRole(this);
 		}
 		
 		// ===== Follows: nested roles implementing the actual call graph: =====
@@ -58,6 +73,11 @@ public team class CallGraph {
 		protected class MethodNode playedBy MethodBinding {
 
 			char[] getSelector() -> get char[] selector;
+
+			String toString() => String toString();
+			
+			String className() -> get ReferenceBinding declaringClass
+				with { result <- String.valueOf(declaringClass.sourceName) }
 
 			// retrieve "binary" property using an indirection via the declaring class:
 			public boolean isBinary() -> get ReferenceBinding declaringClass
