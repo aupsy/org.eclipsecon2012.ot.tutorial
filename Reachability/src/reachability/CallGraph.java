@@ -47,11 +47,20 @@ public team class CallGraph {
 		
 		/**
 		 * A node in the call graph.
+		 * It records which other nodes are called from here ({@link #callees}).
 		 */
 		protected class MethodNode playedBy MethodBinding {
+
 			char[] getSelector() -> get char[] selector;
+
+			protected List<MethodNode> callees;
+			
+			// so called lifting-constructor, invoked when a base (MethodBinding) is wrapped for the first time.
+			public MethodNode(MethodBinding methodBinding) {
+				this.callees = new ArrayList<MethodNode>();
+			}
 		}
-		
+
 		/** Collect all declarations of 'main' methods, to be used as start nodes for traversal. */
 		protected class StartNodeDetector playedBy AbstractMethodDeclaration {
 	
