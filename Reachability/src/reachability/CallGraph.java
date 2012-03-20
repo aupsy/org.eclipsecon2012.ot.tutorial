@@ -1,5 +1,8 @@
 package reachability;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.internal.compiler.lookup.ClassScope;
 
@@ -16,15 +19,26 @@ public team class CallGraph {
 
 	/** Nested team that defines the context when our analysis should be active. */
 	protected team class LifeCycle playedBy JavaBuilder {
-
+		
+		/** 
+		 * During traversal remember all main methods as start nodes for the reachability analysis
+		 */
+		public List<MethodNode> startNodes;
+		
 		/** Intercept JavaBuilder.buildAll() to define the window of activity. */
 		void buildAll() <- replace void buildAll();
 
 		callin void buildAll() {
+			// start collecting information:
+			startNodes = new ArrayList<MethodNode>();
+			
 			// perform the actual build with this nested team being active:
 			this.activate(ALL_THREADS);
 			base.buildAll();
-			this.deactivate(ALL_THREADS);	
+			this.deactivate(ALL_THREADS);
+			
+			// clean-up
+			startNodes = null;
 		}
 		
 		// ===== Follows: nested roles implementing the actual call graph: =====
@@ -47,7 +61,9 @@ public team class CallGraph {
 	
 			private void resolve(ClassScope upperScope) {
 				MethodNode node = this.getNode();
-				System.out.println("Found method: "+new String(node.getSelector()));
+				if (node != null && CharOperation.equals(node.getSelector(), "main".toCharArray()))
+					LifeCycle.this.startNodes.add(node);
+				// if more patterns for start methods are known, add them here.
 			}			
 		}
 	}
