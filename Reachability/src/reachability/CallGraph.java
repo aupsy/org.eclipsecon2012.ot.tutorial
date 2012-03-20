@@ -122,16 +122,11 @@ public team class CallGraph {
 			}			
 		}
 
-		/** A MessageSend connects a method with a callee. */
-		protected class MessageCallEdge playedBy MessageSend {
-
-			MethodNode getTarget() -> get MethodBinding binding;
-	
-			void analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo)
-			<- after
-			FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo);		
-
-			void analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo) {
+		/** Generalize commonality of all call edges. */
+		protected abstract class CallEdge {
+			abstract MethodNode getTarget();
+			
+			protected void analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo) {
 				// ignore message sends in unreachable code:
 				if ((flowInfo.tagBits & FlowInfo.UNREACHABLE) != 0)
 					return;
@@ -143,6 +138,16 @@ public team class CallGraph {
 				if (caller != null)
 					caller.callees.add(callee);
 			}
+		}
+
+		/** A MessageSend connects a method with a callee. */
+		protected class MessageCallEdge extends CallEdge playedBy MessageSend {
+
+			MethodNode getTarget() -> get MethodBinding binding;
+	
+			void analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo)
+			<- after
+			FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo);		
 		}
 
 		/** In the context of a method call we need to find the enclosing (caller) method. */
