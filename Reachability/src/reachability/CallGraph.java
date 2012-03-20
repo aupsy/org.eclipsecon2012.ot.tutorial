@@ -50,8 +50,13 @@ public team class CallGraph {
 			for (MethodNode node : this.getAllRoles(MethodNode.class))
 				allMethods.add(node);
 
+			// remove all methods reachable from any start node:
+			for (MethodNode start : this.startNodes) {
+				start.removeRecursivelyFrom(allMethods);
+			}
+
 			// print remaining nodes to std-out:
-			System.out.println("vvvv FOUND METHODS vvvv");
+			System.out.println("vvvv UNREACHABLE METHODS vvvv");
 			for(MethodNode node : allMethods)
 				if (!node.isBinary())
 					System.out.println(node.className()+'\t'+node);
@@ -89,6 +94,16 @@ public team class CallGraph {
 			// so called lifting-constructor, invoked when a base (MethodBinding) is wrapped for the first time.
 			public MethodNode(MethodBinding methodBinding) {
 				this.callees = new ArrayList<MethodNode>();
+			}
+
+			/** Remove this node and all transitively reachable nodes from 'allMethods'. */
+			public void removeRecursivelyFrom(Set<MethodNode> allMethods) {
+				if (!allMethods.contains(this))
+					return;
+				allMethods.remove(this);
+				// remove all methods that are reachable from the current method:
+				for(MethodNode node : this.callees)
+					node.removeRecursivelyFrom(allMethods);
 			}
 		}
 
