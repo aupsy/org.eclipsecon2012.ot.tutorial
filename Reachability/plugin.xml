@@ -14,6 +14,11 @@
                class="reachability.CallGraph"
                icon="platform:/plugin/org.eclipse.objectteams.otdt.ui/icons/ot/team_obj.gif">
          </team>
+         <team
+               activation="NONE"
+               class="reachability.CallGraph$LifeCycle"
+               icon="platform:/plugin/org.eclipse.objectteams.otdt.ui/icons/ot/team_obj.gif">
+         </team>
       </aspectBinding>
    </extension>
 
