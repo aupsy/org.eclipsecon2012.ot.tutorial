@@ -13,9 +13,12 @@ import org.eclipse.jdt.internal.compiler.lookup.MethodScope;
 import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
 
 import base org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
+import base org.eclipse.jdt.internal.compiler.ast.AllocationExpression;
+import base org.eclipse.jdt.internal.compiler.ast.ExplicitConstructorCall;
 import base org.eclipse.jdt.internal.compiler.ast.MessageSend;
 import base org.eclipse.jdt.internal.compiler.lookup.BlockScope;
 import base org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
+import base org.eclipse.jdt.internal.compiler.lookup.MethodVerifier;
 import base org.eclipse.jdt.internal.core.builder.JavaBuilder;
 
 /** 
@@ -90,10 +93,12 @@ public team class CallGraph {
 				
 			
 			protected List<MethodNode> callees;
-			
+			protected List<MethodNode> overrides;
+
 			// so called lifting-constructor, invoked when a base (MethodBinding) is wrapped for the first time.
 			public MethodNode(MethodBinding methodBinding) {
 				this.callees = new ArrayList<MethodNode>();
+				this.overrides = new ArrayList<MethodNode>();
 			}
 
 			/** Remove this node and all transitively reachable nodes from 'allMethods'. */
@@ -122,7 +127,7 @@ public team class CallGraph {
 			}			
 		}
 
-		/** Generalize commonality of all call edges. */
+		/** Generalize commonality of all call edges: connect a method to one callee. */
 		protected abstract class CallEdge {
 			abstract MethodNode getTarget();
 			
@@ -140,8 +145,28 @@ public team class CallGraph {
 			}
 		}
 
-		/** A MessageSend connects a method with a callee. */
+		/** Let MessageSend play the role CallEdge. */
 		protected class MessageCallEdge extends CallEdge playedBy MessageSend {
+
+			MethodNode getTarget() -> get MethodBinding binding;
+	
+			void analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo)
+			<- after
+			FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo);		
+		}
+
+		/** Let AllocationExpression play the role CallEdge. */
+		protected class CtorCallEdge extends CallEdge playedBy AllocationExpression {
+
+			MethodNode getTarget() -> get MethodBinding binding;
+	
+			void analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo)
+			<- after
+			FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo);		
+		}
+
+		/** Let ExplicitConstructorCall play the role CallEdge. */
+		protected class SelfCallEdge extends CallEdge playedBy ExplicitConstructorCall {
 
 			MethodNode getTarget() -> get MethodBinding binding;
 	
@@ -154,6 +179,18 @@ public team class CallGraph {
 		protected class BlockScope playedBy BlockScope {
 			MethodNode getCaller() -> MethodScope methodScope() 
 				with { result <- result.referenceMethodBinding() }		
+		}
+
+		/** Connect any super methods to their overrides. */
+		protected class Inheritance playedBy MethodVerifier {
+		
+			checkAgainstInheritedMethods <- after checkAgainstInheritedMethods;
+		
+			private void checkAgainstInheritedMethods(MethodNode currentMethod, MethodNode[] methods) {
+				for (MethodNode superMethod : methods)
+					if (superMethod != null)
+						superMethod.overrides.add(currentMethod);
+			}
 		}
 	}
 }
