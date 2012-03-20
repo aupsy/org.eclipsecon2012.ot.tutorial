@@ -109,6 +109,9 @@ public team class CallGraph {
 				// remove all methods that are reachable from the current method:
 				for(MethodNode node : this.callees)
 					node.removeRecursivelyFrom(allMethods);
+				// remove all methods that override the current method:
+				for(MethodNode node : this.overrides)
+					node.removeRecursivelyFrom(allMethods);
 			}
 		}
 
