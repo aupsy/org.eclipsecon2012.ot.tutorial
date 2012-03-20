@@ -4,9 +4,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jdt.core.compiler.CharOperation;
+import org.eclipse.jdt.internal.compiler.flow.FlowContext;
+import org.eclipse.jdt.internal.compiler.flow.FlowInfo;
 import org.eclipse.jdt.internal.compiler.lookup.ClassScope;
+import org.eclipse.jdt.internal.compiler.lookup.MethodScope;
+import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
 
 import base org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
+import base org.eclipse.jdt.internal.compiler.ast.MessageSend;
+import base org.eclipse.jdt.internal.compiler.lookup.BlockScope;
 import base org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
 import base org.eclipse.jdt.internal.core.builder.JavaBuilder;
 
@@ -53,6 +59,11 @@ public team class CallGraph {
 
 			char[] getSelector() -> get char[] selector;
 
+			// retrieve "binary" property using an indirection via the declaring class:
+			public boolean isBinary() -> get ReferenceBinding declaringClass
+				with { result <- declaringClass.isBinaryBinding() }
+				
+			
 			protected List<MethodNode> callees;
 			
 			// so called lifting-constructor, invoked when a base (MethodBinding) is wrapped for the first time.
@@ -74,6 +85,35 @@ public team class CallGraph {
 					LifeCycle.this.startNodes.add(node);
 				// if more patterns for start methods are known, add them here.
 			}			
+		}
+
+		/** A MessageSend connects a method with a callee. */
+		protected class MessageCallEdge playedBy MessageSend {
+
+			MethodNode getTarget() -> get MethodBinding binding;
+	
+			void analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo)
+			<- after
+			FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo);		
+
+			void analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo) {
+				// ignore message sends in unreachable code:
+				if ((flowInfo.tagBits & FlowInfo.UNREACHABLE) != 0)
+					return;
+				MethodNode callee = getTarget();
+				// only consider source methods:
+				if (callee == null || callee.isBinary())
+					return;
+				MethodNode caller = currentScope.getCaller();
+				if (caller != null)
+					caller.callees.add(callee);
+			}
+		}
+
+		/** In the context of a method call we need to find the enclosing (caller) method. */
+		protected class BlockScope playedBy BlockScope {
+			MethodNode getCaller() -> MethodScope methodScope() 
+				with { result <- result.referenceMethodBinding() }		
 		}
 	}
 }
