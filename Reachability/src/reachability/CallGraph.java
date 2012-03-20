@@ -1,5 +1,6 @@
 package reachability;
 
+import base org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
 import base org.eclipse.jdt.internal.core.builder.JavaBuilder;
 
 /** 
@@ -20,6 +21,16 @@ public team class CallGraph {
 			this.activate(ALL_THREADS);
 			base.buildAll();
 			this.deactivate(ALL_THREADS);	
+		}
+		
+		// ===== Follows: nested roles implementing the actual call graph: =====
+		// (these are nested role so that their callin bindings only fire,
+		//  while the enclosing Main team is active)
+		
+		/**
+		 * A node in the call graph.
+		 */
+		protected class MethodNode playedBy MethodBinding {
 		}
 	}
 }
