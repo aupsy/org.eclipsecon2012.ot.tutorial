@@ -5,12 +5,28 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.core.IJavaModelMarker;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.core.ISourceRange;
+import org.eclipse.jdt.core.ISourceReference;
+import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.Signature;
+import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.CharOperation;
+import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.internal.compiler.flow.FlowContext;
 import org.eclipse.jdt.internal.compiler.flow.FlowInfo;
 import org.eclipse.jdt.internal.compiler.lookup.ClassScope;
 import org.eclipse.jdt.internal.compiler.lookup.MethodScope;
 import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+import org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+import org.eclipse.jdt.internal.core.builder.AbstractImageBuilder;
 
 import base org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
 import base org.eclipse.jdt.internal.compiler.ast.AllocationExpression;
@@ -36,12 +52,14 @@ public team class CallGraph {
 		 */
 		public List<MethodNode> startNodes;
 		
+		IProject getCurrentProject() -> get IProject currentProject;
 		/** Intercept JavaBuilder.buildAll() to define the window of activity. */
 		void buildAll() <- replace void buildAll();
 
 		callin void buildAll() {
 			// start collecting information:
 			startNodes = new ArrayList<MethodNode>();
+			clearMarkers();
 			
 			// perform the actual build with this nested team being active:
 			this.activate(ALL_THREADS);
@@ -60,9 +78,12 @@ public team class CallGraph {
 
 			// print remaining nodes to std-out:
 			System.out.println("vvvv UNREACHABLE METHODS vvvv");
-			for(MethodNode node : allMethods)
-				if (!node.isBinary())
+			for(MethodNode node : allMethods) {
+				if (!node.isBinary()) {
 					System.out.println(node.className()+'\t'+node);
+					createMarker(node);
+				}
+			}
 			System.out.println("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
 
 			// clean-up
@@ -86,6 +107,11 @@ public team class CallGraph {
 			
 			String className() -> get ReferenceBinding declaringClass
 				with { result <- String.valueOf(declaringClass.sourceName) }
+
+			char[][] qualifiedClassName() -> get ReferenceBinding declaringClass
+				with { result <- declaringClass.compoundName }
+
+			TypeBinding[] getParameters() -> get TypeBinding[] parameters;
 
 			// retrieve "binary" property using an indirection via the declaring class:
 			public boolean isBinary() -> get ReferenceBinding declaringClass
@@ -193,6 +219,55 @@ public team class CallGraph {
 				for (MethodNode superMethod : methods)
 					if (superMethod != null)
 						superMethod.overrides.add(currentMethod);
+			}
+		}
+		public void clearMarkers() {
+			try {
+				getCurrentProject().deleteMarkers(IJavaModelMarker.JAVA_MODEL_PROBLEM_MARKER, true, IResource.DEPTH_INFINITE);
+			} catch (CoreException e) { /* ignore */ }
+		}
+		public void createMarker(MethodNode method) {
+			try {
+				// find the IType for the declaring class:
+				IJavaProject javaProject = JavaCore.create(getCurrentProject());
+				char[] qualifiedClassName = Signature.toQualifiedName(method.qualifiedClassName());
+				IType declaringType = javaProject.findType(String.valueOf(qualifiedClassName));
+
+				// find the IMethod:
+				TypeBinding[] parameters = method.getParameters();
+				String[] paramTypes = new String[parameters.length];
+				for (int i = 0; i <	parameters.length; i++) {
+					paramTypes[i] = Signature.createTypeSignature(parameters[i].sourceName(), false);
+				}
+				IMethod iMethod = declaringType.getMethod(String.valueOf(method.getSelector()), paramTypes); 
+				if (!iMethod.exists() || !(iMethod instanceof ISourceReference))
+					return;
+				
+				ISourceRange nameRange = ((ISourceReference)iMethod).getNameRange();
+				
+				// create and configure a new marker:
+				IMarker marker = declaringType.getResource().createMarker(IJavaModelMarker.JAVA_MODEL_PROBLEM_MARKER);
+
+		    	String[] allNames = AbstractImageBuilder.JAVA_PROBLEM_MARKER_ATTRIBUTE_NAMES;
+		    	Object[] allValues = new Object[allNames.length];
+				// standard attributes
+				int index = 0;
+				allValues[index++] = "Unreachable method "+String.valueOf(method.getSelector()); // message
+				allValues[index++] = IMarker.SEVERITY_WARNING; // severity
+				allValues[index++] = new Integer(IProblem.UnusedPrivateMethod); // ID
+				allValues[index++] = nameRange.getOffset(); // start
+				allValues[index++] = nameRange.getOffset() + nameRange.getLength(); // end
+				allValues[index++] = null; // line (unknown)
+				allValues[index++] = "0:"; // arguments
+				allValues[index++] = new Integer(CategorizedProblem.CAT_INTERNAL); // category ID
+
+				marker.setAttributes(allNames, allValues);
+
+			} catch (IllegalArgumentException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (CoreException e) {
+				// ignore
 			}
 		}
 	}
